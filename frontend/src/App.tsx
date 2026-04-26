@@ -1,10 +1,15 @@
 import React from 'react';
+import Canvas from './components/Canvas';
 
 export default function App() {
   return (
-    <div>
-      <h1>Bloczki UWB</h1>
-      <p>System tworzenia schematów blokowych algorytmów</p>
+    <div style={{ fontFamily: 'system-ui', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: '#1e1e2e', color: 'white', padding: '8px 16px' }}>
+        <span style={{ fontWeight: 'bold', fontSize: 18 }}>Bloczki UWB</span>
+      </div>
+      <div style={{ flex: 1 }}>
+        <Canvas />
+      </div>
     </div>
   );
 }
