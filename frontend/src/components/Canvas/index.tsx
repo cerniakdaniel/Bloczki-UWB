@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import ReactFlow, {
   Background, Controls, MiniMap,
   useNodesState, useEdgesState,
-  Edge, Node, MarkerType, NodeTypes,
+  Connection, Edge, Node, MarkerType, NodeTypes,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { BlockType } from '../../types';
 import CustomNode from './CustomNode';
+import EdgeLabelModal from './EdgeLabelModal';
 
 const nodeTypes: NodeTypes = { custom: CustomNode };
 
@@ -28,6 +29,15 @@ const BLOCKS: { type: BlockType; label: string; color: string }[] = [
   { type: 'LOOP_FOR',   label: 'Pętla For',            color: '#22d3ee' },
 ];
 
+const makeEdge = (params: Connection, label: string): Edge => ({
+  id: `e_${Date.now()}_${Math.random()}`,
+  source: params.source!, target: params.target!,
+  sourceHandle: params.sourceHandle, targetHandle: params.targetHandle,
+  label, data: { label }, type: 'smoothstep',
+  markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: '#222' },
+  style: { strokeWidth: 2, stroke: '#222' },
+});
+
 interface Props {
   diagramId: string;
   onSave: (nodes: Node[], edges: Edge[]) => void;
@@ -37,6 +47,21 @@ interface Props {
 export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [pendingEdge, setPendingEdge] = useState<Connection | null>(null);
+  const [edgeLabel, setEdgeLabel] = useState('');
+
+  const onConnect = useCallback((params: Connection) => {
+    setPendingEdge(params);
+    setEdgeLabel('');
+  }, []);
+
+  const confirmEdge = () => {
+    if (!pendingEdge) return;
+    setEdges(eds => [...eds, makeEdge(pendingEdge, edgeLabel)]);
+    setPendingEdge(null);
+    setEdgeLabel('');
+    onUnsavedChange(true);
+  };
 
   const addBlock = (type: BlockType, color: string) => {
     const id = `${type}_${Date.now()}`;
@@ -54,6 +79,12 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
     onUnsavedChange(true);
   };
 
+  const deleteSelected = () => {
+    setNodes(nds => nds.filter(n => !n.selected));
+    setEdges(eds => eds.filter(e => !e.selected));
+    onUnsavedChange(true);
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex' }}>
       <div style={{ width: 190, background: '#1e1e2e', padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -65,6 +96,10 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
           }}>{b.label}</button>
         ))}
         <div style={{ flex: 1 }} />
+        <button onClick={deleteSelected} style={{
+          background: '#ef4444', color: 'white', border: 'none',
+          borderRadius: 6, padding: '7px', cursor: 'pointer', fontWeight: 'bold', fontSize: 11
+        }}>🗑️ Usuń zaznaczone</button>
         <button onClick={() => onSave(nodes, edges)} style={{
           background: '#6366f1', color: 'white', border: 'none',
           borderRadius: 6, padding: '9px', cursor: 'pointer', fontWeight: 'bold', fontSize: 12
@@ -73,7 +108,8 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
       <div style={{ flex: 1 }}>
         <ReactFlow nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes} deleteKeyCode="Delete" fitView
+          onConnect={onConnect} nodeTypes={nodeTypes}
+          deleteKeyCode="Delete" connectionMode={'loose' as any} fitView
           defaultEdgeOptions={{
             type: 'smoothstep',
             markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: '#222' },
@@ -82,6 +118,10 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
           <Background /><Controls /><MiniMap />
         </ReactFlow>
       </div>
+      {pendingEdge && (
+        <EdgeLabelModal label={edgeLabel} onChange={setEdgeLabel}
+          onConfirm={confirmEdge} onCancel={() => setPendingEdge(null)} />
+      )}
     </div>
   );
 }
