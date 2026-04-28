@@ -86,4 +86,18 @@ router.delete("/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+router.patch("/:id", async (req, res) => {
+  const { name } = req.body;
+  const diagram = await findOne(db.diagrams, { id: req.params.id });
+  if (!diagram)
+    return res.status(404).json({ error: "Nie znaleziono diagramu." });
+  const now = new Date().toISOString();
+  await update(
+    db.diagrams,
+    { id: req.params.id },
+    { $set: { name, updated_at: now } },
+  );
+  res.json({ success: true });
+});
+
 module.exports = router;
