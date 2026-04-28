@@ -79,4 +79,11 @@ router.put("/:id", async (req, res) => {
   res.json({ success: true, updated_at: now });
 });
 
+router.delete("/:id", async (req, res) => {
+  await remove(db.diagrams, { id: req.params.id });
+  await remove(db.blocks, { diagram_id: req.params.id });
+  await remove(db.connections, { diagram_id: req.params.id });
+  res.json({ success: true });
+});
+
 module.exports = router;
