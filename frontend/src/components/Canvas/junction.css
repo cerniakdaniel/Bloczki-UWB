@@ -1,0 +1,4 @@
+.react-flow__node-junction .react-flow__handle {
+  opacity: 0 !important;
+  pointer-events: all !important;
+}
