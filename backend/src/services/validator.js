@@ -32,6 +32,63 @@ function validateDiagram(blocks, connections) {
       errors.push(`Blok "${b.content || b.type}" nie ma wyjścia.`);
   }
 
+  for (const b of blocks) {
+    if (b.type === "CONDITION") {
+      const outs = outEdges.get(b.id);
+      const labels = outs.map((e) => e.label.toUpperCase());
+      const hasTak = labels.some((l) => ["TAK", "YES", "TRUE"].includes(l));
+      const hasNie = labels.some((l) => ["NIE", "NO", "FALSE"].includes(l));
+      if (outs.length !== 2 || !hasTak || !hasNie)
+        errors.push(`Warunek "${b.content}" musi mieć gałęzie TAK i NIE.`);
+    }
+    if (b.type === "LOOP_WHILE" || b.type === "LOOP_FOR") {
+      if (outEdges.get(b.id).length < 2)
+        errors.push(`Pętla "${b.content}" musi mieć gałąź ciała i wyjście.`);
+    }
+  }
+
+  if (startBlocks.length === 1) {
+    const startId = startBlocks[0].id;
+    const reachable = new Set();
+    const dfs = (id) => {
+      if (reachable.has(id)) return;
+      reachable.add(id);
+      for (const e of outEdges.get(id) || []) dfs(e.to);
+    };
+    dfs(startId);
+
+    for (const b of blocks) {
+      if (!reachable.has(b.id))
+        errors.push(`Blok "${b.content || b.type}" jest nieosiągalny z START.`);
+    }
+
+    const stopIds = new Set(stopBlocks.map((b) => b.id));
+    const canReachStop = new Set();
+    const dfsStop = (id, visited) => {
+      if (canReachStop.has(id)) return true;
+      if (visited.has(id)) return false;
+      if (stopIds.has(id)) {
+        canReachStop.add(id);
+        return true;
+      }
+      visited.add(id);
+      let reaches = false;
+      for (const e of outEdges.get(id) || []) {
+        if (dfsStop(e.to, new Set(visited))) reaches = true;
+      }
+      if (reaches) canReachStop.add(id);
+      return reaches;
+    };
+    for (const b of blocks) {
+      if (reachable.has(b.id) && b.type !== "STOP") {
+        if (!dfsStop(b.id, new Set()))
+          errors.push(
+            `Blok "${b.content || b.type}" jest w cyklu bez wyjścia do STOP.`,
+          );
+      }
+    }
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
