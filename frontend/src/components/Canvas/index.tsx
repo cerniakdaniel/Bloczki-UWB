@@ -1,15 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import ReactFlow, {
   Background, Controls, MiniMap,
   useNodesState, useEdgesState,
   Connection, Edge, Node, MarkerType, NodeTypes,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './junction.css';
 import { BlockType } from '../../types';
 import CustomNode from './CustomNode';
+import JunctionNode from './JunctionNode';
 import EdgeLabelModal from './EdgeLabelModal';
+import { getDiagram } from '../../api/client';
 
-const nodeTypes: NodeTypes = { custom: CustomNode };
+const nodeTypes: NodeTypes = { custom: CustomNode, junction: JunctionNode };
 
 const BLOCK_COLORS: Record<string, string> = {
   START: '#4ade80', STOP: '#f87171',
@@ -49,18 +52,53 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [pendingEdge, setPendingEdge] = useState<Connection | null>(null);
   const [edgeLabel, setEdgeLabel] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!diagramId) return;
+    setIsLoading(true);
+    setHasChanges(false);
+    onUnsavedChange(false);
+    getDiagram(diagramId).then(diagram => {
+      const loadedNodes = (diagram.blocks || []).map((b: any) => ({
+        id: b.id,
+        type: b.type === 'junction' ? 'junction' : 'custom',
+        position: { x: b.position_x, y: b.position_y },
+        data: {
+          type: b.type, color: BLOCK_COLORS[b.type] || '#60a5fa', content: b.content || '',
+          onChange: (content: string) => {
+            setNodes(ns => ns.map(n => n.id === b.id ? { ...n, data: { ...n.data, content } } : n));
+            setHasChanges(true); onUnsavedChange(true);
+          }
+        }
+      }));
+      const loadedEdges = (diagram.connections || []).map((c: any) => ({
+        id: c.id, source: c.from_block_id, target: c.to_block_id,
+        label: c.label, data: { label: c.label }, type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: '#222' },
+        style: { strokeWidth: 2, stroke: '#222' },
+      }));
+      setNodes(loadedNodes);
+      setEdges(loadedEdges);
+      setTimeout(() => setIsLoading(false), 100);
+    }).catch(() => setIsLoading(false));
+  }, [diagramId]);
+
+  const markChanged = () => {
+    if (isLoading) return;
+    setHasChanges(true);
+    onUnsavedChange(true);
+  };
 
   const onConnect = useCallback((params: Connection) => {
-    setPendingEdge(params);
-    setEdgeLabel('');
+    setPendingEdge(params); setEdgeLabel('');
   }, []);
 
   const confirmEdge = () => {
     if (!pendingEdge) return;
     setEdges(eds => [...eds, makeEdge(pendingEdge, edgeLabel)]);
-    setPendingEdge(null);
-    setEdgeLabel('');
-    onUnsavedChange(true);
+    setPendingEdge(null); setEdgeLabel(''); markChanged();
   };
 
   const addBlock = (type: BlockType, color: string) => {
@@ -72,22 +110,37 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
         type, color, content: '',
         onChange: (content: string) => {
           setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, content } } : n));
-          onUnsavedChange(true);
+          markChanged();
         }
       }
     }]);
-    onUnsavedChange(true);
+    markChanged();
+  };
+
+  const addJunction = () => {
+    const id = `junction_${Date.now()}`;
+    setNodes(nds => [...nds, { id, type: 'junction', position: { x: 450 + Math.random() * 80, y: 200 + Math.random() * 80 }, data: {} }]);
+    markChanged();
   };
 
   const deleteSelected = () => {
     setNodes(nds => nds.filter(n => !n.selected));
     setEdges(eds => eds.filter(e => !e.selected));
-    onUnsavedChange(true);
+    markChanged();
+  };
+
+  const clearAll = () => {
+    if (window.confirm('Wyczyścić cały diagram?')) { setNodes([]); setEdges([]); markChanged(); }
+  };
+
+  const handleSave = async () => {
+    await onSave(nodes, edges);
+    setHasChanges(false); onUnsavedChange(false);
   };
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex' }}>
-      <div style={{ width: 190, background: '#1e1e2e', padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ width: 190, background: '#1e1e2e', padding: 10, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
         <div style={{ color: '#aaa', fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>BLOKI</div>
         {BLOCKS.map(b => (
           <button key={b.type} onClick={() => addBlock(b.type, b.color)} style={{
@@ -95,19 +148,26 @@ export default function Canvas({ diagramId, onSave, onUnsavedChange }: Props) {
             padding: '7px 8px', cursor: 'pointer', fontWeight: 'bold', fontSize: 10, textAlign: 'left'
           }}>{b.label}</button>
         ))}
+        <div style={{ color: '#aaa', fontSize: 10, fontWeight: 'bold', marginTop: 6 }}>NARZĘDZIA</div>
+        <button onClick={addJunction} style={{
+          background: '#475569', color: 'white', border: '2px solid #94a3b8',
+          borderRadius: 20, padding: '6px 8px', cursor: 'pointer', fontSize: 10, fontWeight: 'bold'
+        }}>⊗ Węzeł pomocniczy</button>
         <div style={{ flex: 1 }} />
-        <button onClick={deleteSelected} style={{
-          background: '#ef4444', color: 'white', border: 'none',
-          borderRadius: 6, padding: '7px', cursor: 'pointer', fontWeight: 'bold', fontSize: 11
-        }}>🗑️ Usuń zaznaczone</button>
-        <button onClick={() => onSave(nodes, edges)} style={{
-          background: '#6366f1', color: 'white', border: 'none',
-          borderRadius: 6, padding: '9px', cursor: 'pointer', fontWeight: 'bold', fontSize: 12
-        }}>💾 Zapisz</button>
+        {hasChanges && (
+          <div style={{ background: '#f59e0b', color: 'white', borderRadius: 6, padding: '4px 8px', fontSize: 10, textAlign: 'center' }}>
+            ⚠️ Niezapisane zmiany
+          </div>
+        )}
+        <button onClick={deleteSelected} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, padding: '7px', cursor: 'pointer', fontWeight: 'bold', fontSize: 11 }}>🗑️ Usuń zaznaczone</button>
+        <button onClick={clearAll} style={{ background: '#7f1d1d', color: 'white', border: 'none', borderRadius: 6, padding: '7px', cursor: 'pointer', fontWeight: 'bold', fontSize: 11 }}>🧹 Wyczyść wszystko</button>
+        <button onClick={handleSave} style={{ background: hasChanges ? '#f59e0b' : '#6366f1', color: 'white', border: 'none', borderRadius: 6, padding: '9px', cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>💾 Zapisz{hasChanges ? ' *' : ''}</button>
+        <div style={{ color: '#555', fontSize: 9, textAlign: 'center' }}>Zaznacz + Delete = usuń</div>
       </div>
       <div style={{ flex: 1 }}>
         <ReactFlow nodes={nodes} edges={edges}
-          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+          onNodesChange={(changes) => { onNodesChange(changes); if (!isLoading) markChanged(); }}
+          onEdgesChange={(changes) => { onEdgesChange(changes); if (!isLoading) markChanged(); }}
           onConnect={onConnect} nodeTypes={nodeTypes}
           deleteKeyCode="Delete" connectionMode={'loose' as any} fitView
           defaultEdgeOptions={{
