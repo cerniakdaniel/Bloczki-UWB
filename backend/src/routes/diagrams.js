@@ -100,4 +100,20 @@ router.patch("/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+const { validateDiagram } = require("../services/validator");
+
+router.post("/:id/validate", async (req, res) => {
+  const blks = await find(db.blocks, { diagram_id: req.params.id });
+  const conns = await find(db.connections, { diagram_id: req.params.id });
+  const result = validateDiagram(blks, conns);
+  await insert(db.validations, {
+    id: uuidv4(),
+    diagram_id: req.params.id,
+    is_valid: result.isValid,
+    errors: result.errors,
+    created_at: new Date().toISOString(),
+  });
+  res.json(result);
+});
+
 module.exports = router;
