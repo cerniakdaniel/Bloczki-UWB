@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Node, Edge } from 'reactflow';
 import Canvas from './components/Canvas';
-import { createDiagram, listDiagrams, saveDiagram, validateDiagram, deleteDiagram } from './api/client';
+import { createDiagram, listDiagrams, saveDiagram, validateDiagram, generatePseudocode, deleteDiagram } from './api/client';
 import { ValidationResult } from './types';
 
 export default function App() {
@@ -11,6 +11,8 @@ export default function App() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canvasKey, setCanvasKey] = useState(0);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [pseudocode, setPseudocode] = useState<string | null>(null);
+  const [view, setView] = useState<'canvas' | 'pseudo'>('canvas');
 
   useEffect(() => { listDiagrams().then(setDiagrams).catch(() => {}); }, []);
 
@@ -27,6 +29,8 @@ export default function App() {
     setNewName('');
     setHasUnsavedChanges(false);
     setValidation(null);
+    setPseudocode(null);
+    setView('canvas');
   };
 
   const handleSelectDiagram = (id: string) => {
@@ -39,6 +43,8 @@ export default function App() {
     setCanvasKey(k => k + 1);
     setHasUnsavedChanges(false);
     setValidation(null);
+    setPseudocode(null);
+    setView('canvas');
   };
 
   const handleSave = async (nodes: Node[], edges: Edge[]) => {
@@ -60,6 +66,18 @@ export default function App() {
     if (!currentId) return;
     const r = await validateDiagram(currentId);
     setValidation(r);
+  };
+
+  const handleGenerate = async () => {
+    if (!currentId) return;
+    try {
+      const r = await generatePseudocode(currentId);
+      setPseudocode(r.pseudocode);
+      setView('pseudo');
+    } catch (e: any) {
+      const msg = e.response?.data?.errors?.join('\n') || 'Błąd generowania';
+      alert(msg);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -90,6 +108,7 @@ export default function App() {
         <div style={{ flex: 1 }} />
         {currentId && <>
           <button onClick={handleValidate} style={{ padding: '6px 10px', background: '#fbbf24', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>✅ Waliduj</button>
+          <button onClick={handleGenerate} style={{ padding: '6px 10px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📝 Pseudokod</button>
           <button onClick={() => handleDelete(currentId)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>🗑️ Usuń</button>
         </>}
       </div>
@@ -101,6 +120,17 @@ export default function App() {
             }
           </div>
           <button onClick={() => setValidation(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+      {view === 'pseudo' && pseudocode && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', padding: 24, background: '#0f172a', zIndex: 100 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button onClick={() => setView('canvas')} style={{ padding: '6px 12px', borderRadius: 6, background: '#334155', color: 'white', border: 'none', cursor: 'pointer' }}>← Wróć</button>
+            <button onClick={() => navigator.clipboard.writeText(pseudocode)} style={{ padding: '6px 12px', borderRadius: 6, background: '#6366f1', color: 'white', border: 'none', cursor: 'pointer' }}>📋 Kopiuj</button>
+          </div>
+          <pre style={{ flex: 1, color: '#e2e8f0', fontSize: 15, lineHeight: 1.8, overflow: 'auto', margin: 0 }}>
+            {pseudocode}
+          </pre>
         </div>
       )}
       {currentId ? (
