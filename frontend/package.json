@@ -10,7 +10,8 @@
     "react-dom": "^18.2.0",
     "reactflow": "^11.10.4",
     "axios": "^1.6.7",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

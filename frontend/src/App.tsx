@@ -4,6 +4,7 @@ import Canvas from './components/Canvas';
 import { createDiagram, listDiagrams, saveDiagram, validateDiagram, generatePseudocode, deleteDiagram } from './api/client';
 import { ValidationResult } from './types';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function App() {
   const [diagrams, setDiagrams] = useState<any[]>([]);
@@ -20,7 +21,10 @@ export default function App() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    if (hasUnsavedChanges) { const ok = window.confirm('Masz niezapisane zmiany!'); if (!ok) return; }
+    if (hasUnsavedChanges) {
+      const ok = window.confirm('Masz niezapisane zmiany! Czy chcesz kontynuować?');
+      if (!ok) return;
+    }
     const d = await createDiagram(newName);
     setDiagrams(prev => [d, ...prev]);
     setCurrentId(d.id); setCanvasKey(k => k + 1); setNewName('');
@@ -29,15 +33,24 @@ export default function App() {
 
   const handleSelectDiagram = (id: string) => {
     if (!id) return;
-    if (hasUnsavedChanges) { const ok = window.confirm('Masz niezapisane zmiany!'); if (!ok) return; }
+    if (hasUnsavedChanges) {
+      const ok = window.confirm('Masz niezapisane zmiany! Czy chcesz przełączyć?');
+      if (!ok) return;
+    }
     setCurrentId(id); setCanvasKey(k => k + 1); setHasUnsavedChanges(false);
     setValidation(null); setPseudocode(null); setView('canvas');
   };
 
   const handleSave = async (nodes: Node[], edges: Edge[]) => {
     if (!currentId) return;
-    const blocks = nodes.map(n => ({ id: n.id, type: n.data?.type || 'junction', content: n.data?.content || '', position_x: n.position.x, position_y: n.position.y }));
-    const connections = edges.map(e => ({ id: e.id, from_block_id: e.source, to_block_id: e.target, label: String(e.label || e.data?.label || '') }));
+    const blocks = nodes.map(n => ({
+      id: n.id, type: n.data?.type || 'junction', content: n.data?.content || '',
+      position_x: n.position.x, position_y: n.position.y
+    }));
+    const connections = edges.map(e => ({
+      id: e.id, from_block_id: e.source, to_block_id: e.target,
+      label: String(e.label || e.data?.label || '')
+    }));
     await saveDiagram(currentId, { blocks, connections });
     setHasUnsavedChanges(false); alert('Zapisano!');
   };
@@ -81,6 +94,16 @@ export default function App() {
     } catch (e) { alert('Błąd eksportu PNG'); }
   };
 
+  const handleExportPseudocodePDF = () => {
+    if (!pseudocode) { alert('Najpierw wygeneruj pseudokod!'); return; }
+    const doc = new jsPDF();
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(pseudocode, 180);
+    doc.text(lines, 15, 20);
+    doc.save(`${diagrams.find(d => d.id === currentId)?.name || 'pseudokod'}.pdf`);
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Usunąć ten diagram?')) return;
     await deleteDiagram(id);
@@ -90,7 +113,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: 'system-ui', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: '#1e1e2e', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ background: '#1e1e2e', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontWeight: 'bold', fontSize: 16 }}>Bloczki UWB</span>
         <input value={newName} onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleCreate()}
@@ -109,6 +132,7 @@ export default function App() {
           <button onClick={handleValidate} style={{ padding: '6px 10px', background: '#fbbf24', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>✅ Waliduj</button>
           <button onClick={handleGenerate} style={{ padding: '6px 10px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📝 Pseudokod</button>
           <button onClick={handleExportPNG} style={{ padding: '6px 10px', background: '#34d399', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>🖼️ PNG</button>
+          <button onClick={handleExportPseudocodePDF} style={{ padding: '6px 10px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📄 PDF</button>
           <button onClick={() => handleDelete(currentId)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>🗑️ Usuń</button>
         </>}
       </div>
@@ -127,6 +151,7 @@ export default function App() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <button onClick={() => setView('canvas')} style={{ padding: '6px 12px', borderRadius: 6, background: '#334155', color: 'white', border: 'none', cursor: 'pointer' }}>← Wróć</button>
             <button onClick={() => navigator.clipboard.writeText(pseudocode)} style={{ padding: '6px 12px', borderRadius: 6, background: '#6366f1', color: 'white', border: 'none', cursor: 'pointer' }}>📋 Kopiuj</button>
+            <button onClick={handleExportPseudocodePDF} style={{ padding: '6px 12px', borderRadius: 6, background: '#0ea5e9', color: 'white', border: 'none', cursor: 'pointer' }}>📄 Eksport PDF</button>
           </div>
           <pre style={{ flex: 1, color: '#e2e8f0', fontSize: 15, lineHeight: 1.8, overflow: 'auto', margin: 0 }}>{pseudocode}</pre>
         </div>
