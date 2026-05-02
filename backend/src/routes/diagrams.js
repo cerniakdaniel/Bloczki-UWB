@@ -116,4 +116,22 @@ router.post("/:id/validate", async (req, res) => {
   res.json(result);
 });
 
+const { generatePseudocode } = require("../services/generator");
+
+router.post("/:id/generate", async (req, res) => {
+  const blks = await find(db.blocks, { diagram_id: req.params.id });
+  const conns = await find(db.connections, { diagram_id: req.params.id });
+  const validation = validateDiagram(blks, conns);
+  if (!validation.isValid)
+    return res
+      .status(422)
+      .json({ error: "Diagram jest niepoprawny.", errors: validation.errors });
+  try {
+    const pseudocode = generatePseudocode(blks, conns);
+    res.json({ pseudocode });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
