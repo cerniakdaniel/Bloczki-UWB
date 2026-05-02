@@ -134,4 +134,24 @@ router.post("/:id/generate", async (req, res) => {
   }
 });
 
+router.post("/:id/export", async (req, res) => {
+  const { format = "json" } = req.body;
+  const diagram = await findOne(db.diagrams, { id: req.params.id });
+  if (!diagram)
+    return res.status(404).json({ error: "Nie znaleziono diagramu." });
+  const blks = await find(db.blocks, { diagram_id: req.params.id });
+  const conns = await find(db.connections, { diagram_id: req.params.id });
+  await insert(db.exports_h, {
+    id: uuidv4(),
+    diagram_id: req.params.id,
+    format,
+    created_at: new Date().toISOString(),
+  });
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${diagram.name}.json"`,
+  );
+  res.json({ diagram, blocks: blks, connections: conns });
+});
+
 module.exports = router;
