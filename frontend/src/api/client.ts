@@ -21,6 +21,18 @@ export const validateDiagram = (id: string): Promise<ValidationResult> =>
 export const generatePseudocode = (id: string): Promise<{ pseudocode: string }> =>
   api.post(`/diagrams/${id}/generate`).then(r => r.data);
 
+export const exportDiagram = async (id: string, format: string) => {
+  const response = await api.post(`/diagrams/${id}/export`, { format }, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `diagram.${format}`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const deleteDiagram = (id: string) =>
   api.delete(`/diagrams/${id}`).then(r => r.data);
 

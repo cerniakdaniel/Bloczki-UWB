@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import Canvas from './components/Canvas';
-import { createDiagram, listDiagrams, saveDiagram, validateDiagram, generatePseudocode, deleteDiagram } from './api/client';
+import { createDiagram, listDiagrams, saveDiagram, validateDiagram, generatePseudocode, deleteDiagram, getDiagram } from './api/client';
 import { ValidationResult } from './types';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -16,6 +16,7 @@ export default function App() {
   const [pseudocode, setPseudocode] = useState<string | null>(null);
   const [view, setView] = useState<'canvas' | 'pseudo'>('canvas');
   const canvasRef = useRef<HTMLDivElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { listDiagrams().then(setDiagrams).catch(() => {}); }, []);
 
@@ -104,6 +105,43 @@ export default function App() {
     doc.save(`${diagrams.find(d => d.id === currentId)?.name || 'pseudokod'}.pdf`);
   };
 
+  const handleExportJSON = async () => {
+    if (!currentId) return;
+    try {
+      const diagram = await getDiagram(currentId);
+      const data = { name: diagram.name, blocks: diagram.blocks, connections: diagram.connections };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `${diagram.name || 'diagram'}.json`;
+      link.href = url; link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert('Błąd eksportu JSON'); }
+  };
+
+  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (data.blocks && data.connections) {
+          const name = data.name || file.name.replace('.json', '');
+          const d = await createDiagram(name);
+          await saveDiagram(d.id, { blocks: data.blocks, connections: data.connections });
+          const list = await listDiagrams();
+          setDiagrams(list);
+          setCurrentId(d.id); setCanvasKey(k => k + 1);
+          setHasUnsavedChanges(false); setValidation(null); setPseudocode(null); setView('canvas');
+          alert(`Wczytano jako nowy diagram: "${name}"`);
+        } else { alert('Nieprawidłowy format pliku.'); }
+      } catch { alert('Błąd wczytywania pliku JSON'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Usunąć ten diagram?')) return;
     await deleteDiagram(id);
@@ -128,11 +166,14 @@ export default function App() {
         </select>
         {hasUnsavedChanges && <span style={{ background: '#f59e0b', color: 'white', borderRadius: 6, padding: '4px 8px', fontSize: 11, fontWeight: 'bold' }}>⚠️ Niezapisane zmiany</span>}
         <div style={{ flex: 1 }} />
+        <button onClick={() => importRef.current?.click()} style={{ padding: '6px 10px', background: '#64748b', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📂 Wczytaj</button>
+        <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportJSON} />
         {currentId && <>
           <button onClick={handleValidate} style={{ padding: '6px 10px', background: '#fbbf24', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>✅ Waliduj</button>
           <button onClick={handleGenerate} style={{ padding: '6px 10px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📝 Pseudokod</button>
           <button onClick={handleExportPNG} style={{ padding: '6px 10px', background: '#34d399', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>🖼️ PNG</button>
           <button onClick={handleExportPseudocodePDF} style={{ padding: '6px 10px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>📄 PDF</button>
+          <button onClick={handleExportJSON} style={{ padding: '6px 10px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>💾 JSON</button>
           <button onClick={() => handleDelete(currentId)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>🗑️ Usuń</button>
         </>}
       </div>
