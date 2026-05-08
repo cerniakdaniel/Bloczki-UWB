@@ -504,6 +504,12 @@ export default function App() {
           flexWrap: "wrap",
         }}
       >
+        <img
+          src="/uwb.png"
+          alt="UWB"
+          style={{ height: 36 }}
+          onError={(e) => (e.currentTarget.style.display = "none")}
+        />
         <span style={{ fontWeight: "bold", fontSize: 16 }}>Bloczki UWB</span>
         <input
           value={newName}
