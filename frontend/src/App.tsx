@@ -15,6 +15,239 @@ import { ValidationResult } from "./types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+const DEMO_DIAGRAMS = [
+  {
+    name: "Sprawdzenie liczby parzystej",
+    blocks: [
+      {
+        id: "d1_s",
+        type: "START",
+        content: "",
+        position_x: 400,
+        position_y: 50,
+      },
+      {
+        id: "d1_i",
+        type: "INPUT",
+        content: "n",
+        position_x: 400,
+        position_y: 160,
+      },
+      {
+        id: "d1_c",
+        type: "CONDITION",
+        content: "n mod 2 = 0",
+        position_x: 400,
+        position_y: 290,
+      },
+      {
+        id: "d1_o1",
+        type: "OUTPUT",
+        content: "Parzysta",
+        position_x: 230,
+        position_y: 430,
+      },
+      {
+        id: "d1_o2",
+        type: "OUTPUT",
+        content: "Nieparzysta",
+        position_x: 570,
+        position_y: 430,
+      },
+      {
+        id: "d1_e",
+        type: "STOP",
+        content: "",
+        position_x: 400,
+        position_y: 560,
+      },
+    ],
+    connections: [
+      { id: "c1", from_block_id: "d1_s", to_block_id: "d1_i", label: "" },
+      { id: "c2", from_block_id: "d1_i", to_block_id: "d1_c", label: "" },
+      { id: "c3", from_block_id: "d1_c", to_block_id: "d1_o1", label: "TAK" },
+      { id: "c4", from_block_id: "d1_c", to_block_id: "d1_o2", label: "NIE" },
+      { id: "c5", from_block_id: "d1_o1", to_block_id: "d1_e", label: "" },
+      { id: "c6", from_block_id: "d1_o2", to_block_id: "d1_e", label: "" },
+    ],
+  },
+  {
+    name: "Obliczanie silni",
+    blocks: [
+      {
+        id: "d2_s",
+        type: "START",
+        content: "",
+        position_x: 400,
+        position_y: 50,
+      },
+      {
+        id: "d2_i",
+        type: "INPUT",
+        content: "n",
+        position_x: 400,
+        position_y: 160,
+      },
+      {
+        id: "d2_o1",
+        type: "OPERATION",
+        content: "wynik = 1",
+        position_x: 400,
+        position_y: 260,
+      },
+      {
+        id: "d2_o2",
+        type: "OPERATION",
+        content: "i = 1",
+        position_x: 400,
+        position_y: 360,
+      },
+      {
+        id: "d2_l",
+        type: "LOOP_WHILE",
+        content: "i <= n",
+        position_x: 400,
+        position_y: 470,
+      },
+      {
+        id: "d2_o3",
+        type: "OPERATION",
+        content: "wynik = wynik * i",
+        position_x: 200,
+        position_y: 600,
+      },
+      {
+        id: "d2_o4",
+        type: "OPERATION",
+        content: "i = i + 1",
+        position_x: 200,
+        position_y: 700,
+      },
+      {
+        id: "d2_out",
+        type: "OUTPUT",
+        content: "wynik",
+        position_x: 400,
+        position_y: 600,
+      },
+      {
+        id: "d2_e",
+        type: "STOP",
+        content: "",
+        position_x: 400,
+        position_y: 720,
+      },
+    ],
+    connections: [
+      { id: "c1", from_block_id: "d2_s", to_block_id: "d2_i", label: "" },
+      { id: "c2", from_block_id: "d2_i", to_block_id: "d2_o1", label: "" },
+      { id: "c3", from_block_id: "d2_o1", to_block_id: "d2_o2", label: "" },
+      { id: "c4", from_block_id: "d2_o2", to_block_id: "d2_l", label: "" },
+      { id: "c5", from_block_id: "d2_l", to_block_id: "d2_o3", label: "TAK" },
+      { id: "c6", from_block_id: "d2_o3", to_block_id: "d2_o4", label: "" },
+      { id: "c7", from_block_id: "d2_o4", to_block_id: "d2_l", label: "" },
+      { id: "c8", from_block_id: "d2_l", to_block_id: "d2_out", label: "NIE" },
+      { id: "c9", from_block_id: "d2_out", to_block_id: "d2_e", label: "" },
+    ],
+  },
+  {
+    name: "Wyszukiwanie maksimum z tablicy",
+    blocks: [
+      {
+        id: "d3_s",
+        type: "START",
+        content: "",
+        position_x: 400,
+        position_y: 50,
+      },
+      {
+        id: "d3_i1",
+        type: "INPUT",
+        content: "n",
+        position_x: 400,
+        position_y: 160,
+      },
+      {
+        id: "d3_i2",
+        type: "INPUT",
+        content: "tab[1..n]",
+        position_x: 400,
+        position_y: 260,
+      },
+      {
+        id: "d3_o1",
+        type: "OPERATION",
+        content: "maks = tab[1]",
+        position_x: 400,
+        position_y: 360,
+      },
+      {
+        id: "d3_o2",
+        type: "OPERATION",
+        content: "i = 2",
+        position_x: 400,
+        position_y: 460,
+      },
+      {
+        id: "d3_l",
+        type: "LOOP_WHILE",
+        content: "i <= n",
+        position_x: 400,
+        position_y: 560,
+      },
+      {
+        id: "d3_c",
+        type: "CONDITION",
+        content: "tab[i] > maks",
+        position_x: 200,
+        position_y: 690,
+      },
+      {
+        id: "d3_o3",
+        type: "OPERATION",
+        content: "maks = tab[i]",
+        position_x: 200,
+        position_y: 820,
+      },
+      {
+        id: "d3_o4",
+        type: "OPERATION",
+        content: "i = i + 1",
+        position_x: 200,
+        position_y: 940,
+      },
+      {
+        id: "d3_out",
+        type: "OUTPUT",
+        content: "maks",
+        position_x: 400,
+        position_y: 690,
+      },
+      {
+        id: "d3_e",
+        type: "STOP",
+        content: "",
+        position_x: 400,
+        position_y: 820,
+      },
+    ],
+    connections: [
+      { id: "c1", from_block_id: "d3_s", to_block_id: "d3_i1", label: "" },
+      { id: "c2", from_block_id: "d3_i1", to_block_id: "d3_i2", label: "" },
+      { id: "c3", from_block_id: "d3_i2", to_block_id: "d3_o1", label: "" },
+      { id: "c4", from_block_id: "d3_o1", to_block_id: "d3_o2", label: "" },
+      { id: "c5", from_block_id: "d3_o2", to_block_id: "d3_l", label: "" },
+      { id: "c6", from_block_id: "d3_l", to_block_id: "d3_c", label: "TAK" },
+      { id: "c7", from_block_id: "d3_c", to_block_id: "d3_o3", label: "TAK" },
+      { id: "c8", from_block_id: "d3_c", to_block_id: "d3_o4", label: "NIE" },
+      { id: "c9", from_block_id: "d3_o3", to_block_id: "d3_o4", label: "" },
+      { id: "c10", from_block_id: "d3_o4", to_block_id: "d3_l", label: "" },
+      { id: "c11", from_block_id: "d3_l", to_block_id: "d3_out", label: "NIE" },
+      { id: "c12", from_block_id: "d3_out", to_block_id: "d3_e", label: "" },
+    ],
+  },
+];
+
 export default function App() {
   const [diagrams, setDiagrams] = useState<any[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -31,7 +264,26 @@ export default function App() {
 
   useEffect(() => {
     listDiagrams()
-      .then(setDiagrams)
+      .then(async (list) => {
+        const demoNames = DEMO_DIAGRAMS.map((d) => d.name);
+        const hasDemo = list.some((d: any) => demoNames.includes(d.name));
+        if (!hasDemo) {
+          for (const demo of DEMO_DIAGRAMS) {
+            try {
+              const d = await createDiagram(demo.name);
+              await saveDiagram(d.id, {
+                blocks: demo.blocks,
+                connections: demo.connections,
+              });
+            } catch (e) {}
+          }
+          listDiagrams()
+            .then(setDiagrams)
+            .catch(() => {});
+        } else {
+          setDiagrams(list);
+        }
+      })
       .catch(() => {});
   }, []);
 
